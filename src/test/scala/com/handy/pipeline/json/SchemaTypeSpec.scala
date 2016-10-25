@@ -1,21 +1,21 @@
-package com.handy.pipeline.json
+package com.handy.schema
 
 import io.circe.syntax._
 import io.circe.parser._
 
-import cats.data.Validated.Valid
-
 import org.specs2.mutable.Specification
 
-import com.handy.pipeline.json.SchemaType._
+import com.handy.schema._
+import com.handy.schema.json._
+import com.handy.schema.SchemaType._
 
 class SchemaTypeSpec extends Specification {
-  "fitJsonToSchema" >> {
-    val st = ObjectType(List(
+  "convertWithSchema" >> {
+    val st: SchemaType = StructType(List(
       ("a", LongType),
       ("b", BooleanType),
       ("c", ArrayType(StringType)),
-      ("d", ObjectType(List(
+      ("d", StructType(List(
         ("e", DoubleType),
         ("f", NullType)
       )))
@@ -44,7 +44,7 @@ class SchemaTypeSpec extends Specification {
     """).toOption.get
 
     "parse json to fit schema specified by given SchemaType" >> {
-      fitJsonToSchema(json1, st) shouldEqual Valid(Map(
+      convertWithSchema(json1, st) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> true.asJson,
         "c" -> List("foo", "bar", "baz").asJson,
@@ -55,7 +55,7 @@ class SchemaTypeSpec extends Specification {
       ).asJson)
     }
     "convert improperly typed json to fit schema based on conversion rules" >> {
-      fitJsonToSchema(json2, st) shouldEqual Valid(Map(
+      convertWithSchema(json2, st) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> None.asJson,
         "c" -> List("1", "2", "3").asJson,
