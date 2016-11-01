@@ -6,7 +6,7 @@ import java.sql.ResultSet
 import java.sql.Statement
 import java.sql.DriverManager
 
-import atto._, Atto._
+import atto._, Atto._, compat.stdlib._
 
 import com.handy.schema._
 import com.handy.schema.hive.SchemaParser._
@@ -40,14 +40,14 @@ object HiveSchema {
     println("executing sql")
     val rs = stmt.executeQuery(s"describe $tableName")
     println("done")
-    val schema = 
+    val schema =
       "struct<" + resSetToList(rs).map { case (name, typ) =>
         name + ":" + typ
       }.mkString(",") + ">"
     conn.close()
     schema
   }
-  
+
   implicit val hiveToSchema =
     new ToSchema[HiveSchema] {
       def apply(schema: HiveSchema): Either[SchemaParseError, SchemaType] =

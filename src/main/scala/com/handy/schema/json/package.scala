@@ -23,8 +23,10 @@ package object json {
       case (k, v) => (k.asJson, v)
     })
     def toStruct(a: Json): Option[Map[String, Json]] = a.asObject.map(_.toMap)
+
+    def isNull(a: Json): Boolean = a.isNull
   }
-  
+
   implicit val jsonFromValue = new FromValue[Json] {
     def fromByte(a: Byte): Json = a.asJson
     def fromShort(a: Short) : Json = a.asJson
