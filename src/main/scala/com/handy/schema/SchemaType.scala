@@ -1,11 +1,8 @@
 package com.handy.schema
 
-import io.circe.{Json, JsonObject}
-import io.circe.syntax._
-
-import cats.implicits._
 import cats.data.Validated
 import cats.data.Validated._
+import cats.implicits._
 
 sealed trait SchemaType { val nullable: Boolean }
 sealed trait PrimitiveType extends SchemaType
@@ -29,7 +26,7 @@ case class StructType(fields: List[(String, SchemaType)], nullable: Boolean) ext
 object SchemaType {
   def convertWithSchema[A, B, S](a: A, schema: S)
   (implicit tv: ToValue[A], fv: FromValue[B], toSchema: ToSchema[S])
-  : Either[Error, B] =
+  : Either[Throwable, B] =
     for {
       s <- toSchema(schema)
       res <- convertWithSchemaAux(a, s)
@@ -96,7 +93,7 @@ object SchemaType {
 }
 
 trait ToSchema[A] {
-  def apply(a: A): Either[Error, SchemaType]
+  def apply(a: A): Either[Throwable, SchemaType]
 }
 
 trait ToValue[A] {

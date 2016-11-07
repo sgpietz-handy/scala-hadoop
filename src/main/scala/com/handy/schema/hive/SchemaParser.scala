@@ -42,5 +42,6 @@ object SchemaParser {
   private val mapParser = angles(pairBy(schemaParser, char(','), schemaParser))
   private val unionParser = angles(sepBy(schemaParser, char(',')))
   private val structParser = angles(sepBy(schemaField, char(',')))
-
 }
+
+

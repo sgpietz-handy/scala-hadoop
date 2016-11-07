@@ -1,6 +1,10 @@
 scalaVersion := "2.11.8"
 
-name := "scala-hadoop"
+organization := "com.handy"
+
+name := "schema"
+
+version := "0.0.1"
 
 libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % "2.6.0",
@@ -19,3 +23,5 @@ mainClass in (Compile, packageBin) := Some("com.handy.App")
 scalacOptions in Test ++= Seq("-Yrangepos")
 
 addCompilerPlugin("org.scalamacros" % "paradise" % "2.1.0" cross CrossVersion.full)
+
+crossScalaVersions := Seq("2.10.6")

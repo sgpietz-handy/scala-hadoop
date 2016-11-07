@@ -45,6 +45,6 @@ package object json {
     def fromStruct(a: Map[String, Json]): Json = a.asJson
   }
 
-  def fitJsonToHiveSchema(json: Json, schema: HiveSchema): Either[Error, Json] =
+  def fitJsonToHiveSchema(json: Json, schema: HiveSchema): Either[Throwable, Json] =
     SchemaType.convertWithSchema(json, schema)
 }
