@@ -4,7 +4,7 @@ organization := "com.handy"
 
 name := "schema"
 
-version := "0.0.1"
+version := "0.0.2"
 
 libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % "2.6.0",

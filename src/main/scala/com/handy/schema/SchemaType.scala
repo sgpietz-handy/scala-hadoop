@@ -4,29 +4,32 @@ import cats.data.Validated
 import cats.data.Validated._
 import cats.implicits._
 
-sealed trait SchemaType { val nullable: Boolean }
+sealed trait SchemaType
 sealed trait PrimitiveType extends SchemaType
 sealed trait ComplexType extends SchemaType
-case class ByteType(nullable: Boolean) extends PrimitiveType
-case class ShortType(nullable: Boolean) extends PrimitiveType
-case class IntType(nullable: Boolean) extends PrimitiveType
-case class LongType(nullable: Boolean) extends PrimitiveType
-case class FloatType(nullable: Boolean) extends PrimitiveType
-case class DoubleType(nullable: Boolean) extends PrimitiveType
-case class DecimalType(nullable: Boolean) extends PrimitiveType
-case class StringType(nullable: Boolean) extends PrimitiveType
-case class BinaryType(nullable: Boolean) extends PrimitiveType
-case class BooleanType(nullable: Boolean) extends PrimitiveType
-case object NullType extends PrimitiveType { val nullable = true }
-case class ArrayType(t: SchemaType, nullable: Boolean) extends ComplexType
-case class MapType(k: PrimitiveType, v: SchemaType, nullable: Boolean) extends ComplexType
-case class UnionType(ts: List[SchemaType], nullable: Boolean) extends ComplexType
-case class StructType(fields: List[(String, SchemaType)], nullable: Boolean) extends ComplexType
+case object ByteType extends PrimitiveType
+case object ShortType extends PrimitiveType
+case object IntType extends PrimitiveType
+case object LongType extends PrimitiveType
+case object FloatType extends PrimitiveType
+case object DoubleType extends PrimitiveType
+case object DecimalType extends PrimitiveType
+case object StringType extends PrimitiveType
+case object BinaryType extends PrimitiveType
+case object BooleanType extends PrimitiveType
+case object NullType extends PrimitiveType
+case class ArrayType(t: SchemaType) extends ComplexType
+case class MapType(k: PrimitiveType, v: SchemaType) extends ComplexType
+case class UnionType(ts: List[SchemaType]) extends ComplexType
+case class StructType(fields: List[SchemaField]) extends ComplexType
+
+case class SchemaField(name: String, t: SchemaType, nullable: Boolean)
 
 object SchemaType {
+
   def convertWithSchema[A, B, S](a: A, schema: S)
-  (implicit tv: ToValue[A], fv: FromValue[B], toSchema: ToSchema[S])
-  : Either[Throwable, B] =
+      (implicit tv: ToValue[A], fv: FromValue[B], toSchema: ToSchema[S])
+      : Either[Throwable, B] =
     for {
       s <- toSchema(schema)
       res <- convertWithSchemaAux(a, s)
@@ -34,6 +37,7 @@ object SchemaType {
         .left
         .map(ErrorList)
     } yield res
+
 
   private def convertWithSchemaAux[A, B](a: A, schema: SchemaType)
   (implicit tv: ToValue[A], fv: FromValue[B]): Validated[List[Error], B] = {
@@ -45,45 +49,56 @@ object SchemaType {
         case None => err
       }
 
-    if (tv.isNull(a)) orInvalid(if (schema.nullable) Some(fv.fromNull) else None)
-    else schema match {
-      case ByteType(_) => orInvalid(tv.toByte(a).map(fv.fromByte))
-      case ShortType(_) => orInvalid(tv.toShort(a).map(fv.fromShort))
-      case IntType(_) => orInvalid(tv.toInt(a).map(fv.fromInt))
-      case LongType(_) => orInvalid(tv.toLong(a).map(fv.fromLong))
-      case FloatType(_) => orInvalid(tv.toFloat(a).map(fv.fromFloat))
-      case DoubleType(_) => orInvalid(tv.toDouble(a).map(fv.fromDouble))
-      case DecimalType(_) => orInvalid(tv.toDecimal(a).map(fv.fromDecimal))
-      case StringType(_) => orInvalid(tv.toString(a).map(fv.fromString))
-      case BinaryType(_) => orInvalid(tv.toBinary(a).map(fv.fromBinary))
-      case BooleanType(_) => orInvalid(tv.toBoolean(a).map(fv.fromBoolean))
+    def convertStruct(values: Map[String, A], fields: List[SchemaField])
+        : Validated[List[Error], List[(String, B)]] =
+      fields.traverseU { case SchemaField(name, t, nullable) =>
+        val value = for {
+          v <- values.get(name)
+          if (!tv.isNull(v))
+            } yield convertWithSchemaAux(v, t)
+
+        val res: Validated[List[Error], (String, B)] = value match {
+          case None if nullable => valid((name, fv.fromNull))
+          case Some(validated) => validated.map(v => (name, v))
+          case None => invalid(List(MissingField(name, values)))
+        }
+        res
+      }
+
+    schema match {
+      case ByteType => orInvalid(tv.toByte(a).map(fv.fromByte))
+      case ShortType => orInvalid(tv.toShort(a).map(fv.fromShort))
+      case IntType => orInvalid(tv.toInt(a).map(fv.fromInt))
+      case LongType => orInvalid(tv.toLong(a).map(fv.fromLong))
+      case FloatType => orInvalid(tv.toFloat(a).map(fv.fromFloat))
+      case DoubleType => orInvalid(tv.toDouble(a).map(fv.fromDouble))
+      case DecimalType => orInvalid(tv.toDecimal(a).map(fv.fromDecimal))
+      case StringType => orInvalid(tv.toString(a).map(fv.fromString))
+      case BinaryType => orInvalid(tv.toBinary(a).map(fv.fromBinary))
+      case BooleanType => orInvalid(tv.toBoolean(a).map(fv.fromBoolean))
       case NullType => valid(fv.fromNull)
-      case ArrayType(t, _) =>
+      case ArrayType(t) =>
         tv.toArray(a).map((arr: List[A]) =>
           arr.traverseU((a: A) => convertWithSchemaAux(a, t)) // validated[B]
              .map((arr: List[B]) => fv.fromArray(arr)))
           .getOrElse(err)
-      case MapType(k, v, _) =>
+      case MapType(k, v) =>
         tv.toMap(a).map((m: Map[A, A]) =>
           m.toList.traverseU(kv =>
             (convertWithSchemaAux(kv._1, k) |@| convertWithSchemaAux(kv._2, v)).tupled
           ).map(a => fv.fromMap(a.toMap)))
            .getOrElse(invalid(List(UnexpectedType(a.toString, schema))))
-      case UnionType(ts, _) =>
+      case UnionType(ts) =>
         orInvalid(ts.flatMap(t =>
           convertWithSchemaAux(a, t).toList).headOption)
-      case StructType(fields, _) =>
-        tv.toStruct(a).map(jsonMap =>
-          fields.toList.traverseU(kv =>
-            jsonMap.get(kv._1).map(v =>
-              convertWithSchemaAux(v, kv._2).map(v2 => (kv._1, v2))
-            ).getOrElse(
-              if (kv._2.nullable) valid((kv._1, fv.fromNull))
-              else invalid(List(MissingField(kv._1, a)))
-            )
-          ).map(a => fv.fromStruct(a.toMap))
-        ).getOrElse(err)
+      case st @ StructType(fields) =>
+        tv.toStruct(a)
+          .map(vs => convertStruct(vs, fields).map(l => fv.fromStruct(l.toMap)))
+          .getOrElse(err)
+
+
     }
+
   }
 
   implicit val schemaTypetoSchema = new ToSchema[SchemaType] {

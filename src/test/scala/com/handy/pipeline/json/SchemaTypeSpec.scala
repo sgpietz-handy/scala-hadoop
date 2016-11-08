@@ -7,7 +7,6 @@ import cats.implicits._
 
 import org.specs2.mutable.Specification
 
-import com.handy.schema._
 import com.handy.schema.json._
 import com.handy.schema.hive._
 import com.handy.schema.SchemaType._
@@ -45,14 +44,14 @@ class SchemaTypeSpec extends Specification {
 
   "convertWithSchema" >> {
     val st: SchemaType = StructType(List(
-      ("a", LongType(true)),
-      ("b", BooleanType(true)),
-      ("c", ArrayType(StringType(true), true)),
-      ("d", StructType(List(
-        ("e", DoubleType(false)),
-        ("f", NullType)
-      ), true))
-    ), true)
+      SchemaField("a", LongType, true),
+      SchemaField("b", BooleanType, true),
+      SchemaField("c", ArrayType(StringType), true),
+      SchemaField("d", StructType(List(
+        SchemaField("e", DoubleType, false),
+        SchemaField("f", NullType, true)
+      )), true)
+    ))
 
     "parse json to fit schema specified by given SchemaType" >> {
       val json = parse("""
