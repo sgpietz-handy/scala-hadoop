@@ -49,7 +49,7 @@ object HiveSchema {
   }
 
   implicit val hiveToSchema =
-    new ToSchema[HiveSchema] {
+    new Schema[HiveSchema] {
       def apply(schema: HiveSchema): Either[SchemaParseError, SchemaType] =
         schemaParser.parseOnly(schema.schema)
           .either

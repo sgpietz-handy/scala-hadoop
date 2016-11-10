@@ -6,7 +6,7 @@ import io.circe.syntax._
 import com.handy.schema.hive._
 
 package object json {
-  implicit val jsonToValue = new ToValue[Json] {
+  implicit val jsonConvertsFrom = new ConvertsFrom[Json] {
     def toByte(a: Json): Option[Byte] = a.as[Byte].toOption
     def toShort(a: Json): Option[Short] = a.as[Short].toOption
     def toInt(a: Json): Option[Int] = a.as[Int].toOption
@@ -27,7 +27,7 @@ package object json {
     def isNull(a: Json): Boolean = a.isNull
   }
 
-  implicit val jsonFromValue = new FromValue[Json] {
+  implicit val jsonConvertsTo = new ConvertsTo[Json] {
     def fromByte(a: Byte): Json = a.asJson
     def fromShort(a: Short) : Json = a.asJson
     def fromInt(a: Int): Json = a.asJson
@@ -44,7 +44,4 @@ package object json {
     def fromMap(a: Map[Json, Json]): Json = a.map(kv => (kv._1.toString, kv._2)).asJson
     def fromStruct(a: Map[String, Json]): Json = a.asJson
   }
-
-  def fitJsonToHiveSchema(json: Json, schema: HiveSchema): Either[Throwable, Json] =
-    SchemaType.convertWithSchema(json, schema)
 }

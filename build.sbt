@@ -15,7 +15,8 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-parser" % "0.5.1",
   "org.typelevel" %% "cats" % "0.7.0",
   "org.specs2" %% "specs2-core" % "3.8.3" % "test",
-  "org.tpolecat" %% "atto-core"  % "0.5.0"
+  "org.tpolecat" %% "atto-core"  % "0.5.0",
+  "com.github.mpilquist" %% "simulacrum" % "0.10.0"
 )
 
 mainClass in (Compile, packageBin) := Some("com.handy.App")
