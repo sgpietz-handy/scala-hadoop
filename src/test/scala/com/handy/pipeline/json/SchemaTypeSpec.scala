@@ -7,9 +7,9 @@ import cats.implicits._
 
 import org.specs2.mutable.Specification
 
-import com.handy.schema.json._
+import com.handy.schema.implicits._
 import com.handy.schema.hive._
-import com.handy.schema.SchemaType._
+import com.handy.schema._
 
 class SchemaTypeSpec extends Specification {
   "fitJsonToHiveSchema" >> {
@@ -29,7 +29,7 @@ class SchemaTypeSpec extends Specification {
           }
         """).toOption.get
 
-        fitJsonToHiveSchema(json, hSchema) shouldEqual Right(Map(
+        hSchema.coerce(json) shouldEqual Right(Map(
           "name" -> "Bill Murray".asJson,
           "age" -> 55.asJson,
           "married" -> true.asJson,
@@ -66,7 +66,7 @@ class SchemaTypeSpec extends Specification {
         }
       """).toOption.get
 
-      convertWithSchema(json, st) shouldEqual Right(Map(
+      st.coerce(json) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> true.asJson,
         "c" -> List("foo", "bar", "baz").asJson,
@@ -88,7 +88,7 @@ class SchemaTypeSpec extends Specification {
         }
       """).toOption.get
 
-      convertWithSchema(json, st) shouldEqual Right(Map(
+      st.coerce(json) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> None.asJson,
         "c" -> List("1", "2", "3").asJson,
@@ -110,7 +110,7 @@ class SchemaTypeSpec extends Specification {
         }
       """).toOption.get
 
-      convertWithSchema(json, st) must beRight
+      st.coerce(json) must beRight
     }
     "disallow null values if nullable = false" >> {
       val json = parse("""
@@ -123,7 +123,7 @@ class SchemaTypeSpec extends Specification {
         }
       """).toOption.get
 
-      convertWithSchema(json, st) must beLeft
+      st.coerce(json) must beLeft
     }
     "disallow missing value if field is nullable" >> {
       val json = parse("""
@@ -137,7 +137,7 @@ class SchemaTypeSpec extends Specification {
         }
       """).toOption.get
 
-      convertWithSchema(json, st) must beLeft
+      st.coerce(json) must beLeft
     }
   }
 
