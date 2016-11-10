@@ -3,13 +3,13 @@ package com.handy.schema
 import cats.data.Validated
 import cats.data.Validated._
 import cats.implicits._
+import simulacrum._
 
-
-trait Schema[S] {
+@typeclass trait Schema[S] {
   def apply(a: S): Either[Throwable, SchemaType]
 
-  def convert[A, B : ConvertsTo](s: S, from: A)
-             (implicit from: ConvertsFrom[A]): Either[Throwable, B] =
+  @op("convert") def convert[A : ConvertsFrom, B : ConvertsTo](s: S, from: A)
+      : Either[Throwable, B] =
     for {
       schema <- apply(s)
       res <- convertWithSchemaAux(from, schema)
@@ -18,7 +18,8 @@ trait Schema[S] {
       .map(ErrorList)
     } yield res
 
-  def coerce[A : ConvertsFrom : ConvertsTo](s: S, from: A): Either[Throwable, A] = convert(from)
+  @op("coerce") def coerce[A : ConvertsFrom : ConvertsTo](s: S, from: A)
+      : Either[Throwable, A] = convert(s, from)
 
   private def convertWithSchemaAux[A, B](a: A, schema: SchemaType)
   (implicit cf: ConvertsFrom[A], ct: ConvertsTo[B]): Validated[List[Error], B] = {
@@ -80,28 +81,36 @@ trait Schema[S] {
   }
 }
 
-object Schema {
-  def apply[S](implicit instance: Schema[S]) = instance
-
-  trait Ops[S] {
-    def typeClassInstance: Schema[S]
-    def self: A
-    def convert[A: ConvertsFrom, B: ConvertsTo](from: A): B =
-      typeClassInstance.convert(self, from)
-    def corece[A : ConvertsFrom : ConvertsTo](from: A): B =
-      typeClassInstance.corece(self, from)
-  }
-
-  object ops {
-    implicit def toSchemaOps[S](target: S)(implicit tc: Schema[S]): Ops[S] =
-      new Ops[S] {
-        val self = target
-        val typeClassInstance = tc
-      }
-  }
-
-  implicit val schemaTypetoSchema = new Schema[SchemaType] {
-    def apply(schema: SchemaType): Either[Error, SchemaType] =
-      Right(schema)
-  }
-}
+// object Schema {
+//   def apply[S](implicit instance: Schema[S]) = instance
+//
+//   trait Ops[S] {
+//     def typeClassInstance: Schema[S]
+//     def self: A
+//     def convert[A: ConvertsFrom, B: ConvertsTo](from: A): B =
+//       typeClassInstance.convert(self, from)
+//     def corece[A : ConvertsFrom : ConvertsTo](from: A): B =
+//       typeClassInstance.corece(self, from)
+//   }
+//
+//   trait SchemaOps {
+//     implicit def toSchemaOps[S](target: S)(implicit tc: Schema[S]): Ops[S] =
+//       new Ops[S] {
+//         val self = target
+//         val typeClassInstance = tc
+//       }
+//   }
+//
+//   object ops {
+//     implicit def toSchemaOps[S](target: S)(implicit tc: Schema[S]): Ops[S] =
+//       new Ops[S] {
+//         val self = target
+//         val typeClassInstance = tc
+//       }
+//   }
+//
+//   implicit val schemaTypetoSchema = new Schema[SchemaType] {
+//     def apply(schema: SchemaType): Either[Error, SchemaType] =
+//       Right(schema)
+//   }
+// }

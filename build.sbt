@@ -10,6 +10,7 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-common" % "2.6.0",
   "org.apache.hive" % "hive-jdbc" % "1.2.1",
   "org.apache.hive" % "hive-serde" % "1.2.1",
+  "org.apache.spark" %% "spark-sql" % "1.5.2" % "provided",
   "com.google.guava" % "guava" % "16.0.1",
   "io.circe" %% "circe-core" % "0.5.1",
   "io.circe" %% "circe-parser" % "0.5.1",
