@@ -1,50 +1,72 @@
-package com.handy.pipeline.json
+package com.handy.schema
 
 import io.circe.syntax._
 import io.circe.parser._
 
-import cats.data.Validated.Valid
+import cats.implicits._
 
 import org.specs2.mutable.Specification
 
-import com.handy.pipeline.json.SchemaType._
+import com.handy.schema.implicits._
+import com.handy.schema.hive._
+import com.handy.schema._
 
 class SchemaTypeSpec extends Specification {
-  "fitJsonToSchema" >> {
-    val st = ObjectType(List(
-      ("a", LongType),
-      ("b", BooleanType),
-      ("c", ArrayType(StringType)),
-      ("d", ObjectType(List(
-        ("e", DoubleType),
-        ("f", NullType)
-      )))
+  "fitJsonToHiveSchema" >> {
+      "convert json data to match a hive schema" >> {
+        val hSchema = HiveSchema("""
+        struct<name:string,age:int,married:boolean,numbers:array<double>,address:struct<street:string,house_no:bigint>>
+        """.trim)
+        val json = parse("""
+          {
+            "name": "Bill Murray",
+            "age": 55,
+            "married": true,
+            "numbers": [1, 2, 3, 4, 5],
+            "address": {
+              "street": "elm"
+            }
+          }
+        """).toOption.get
+
+        hSchema.coerce(json) shouldEqual Right(Map(
+          "name" -> "Bill Murray".asJson,
+          "age" -> 55.asJson,
+          "married" -> true.asJson,
+          "numbers" -> List(1, 2, 3, 4, 5).asJson,
+          "address" -> Map(
+            "street" -> "elm".asJson,
+            "house_no" -> None.asJson
+          ).asJson
+        ).asJson)
+      }
+    }
+
+  "convertWithSchema" >> {
+    val st: SchemaType = StructType(List(
+      SchemaField("a", LongType, true),
+      SchemaField("b", BooleanType, true),
+      SchemaField("c", ArrayType(StringType), true),
+      SchemaField("d", StructType(List(
+        SchemaField("e", DoubleType, false),
+        SchemaField("f", NullType, true)
+      )), true)
     ))
 
-    val json1 = parse("""
-      {
-        "a": 5,
-        "b": true,
-        "c": ["foo", "bar", "baz"],
-        "d": {
-          "e": 45.222,
-          "f": null
-        }
-      }
-    """).toOption.get
-
-    val json2 = parse("""
-      {
-        "a": 5,
-        "c": [1, 2, "3"],
-        "d": {
-          "e": 45.222
-        }
-      }
-    """).toOption.get
-
     "parse json to fit schema specified by given SchemaType" >> {
-      fitJsonToSchema(json1, st) shouldEqual Valid(Map(
+      val json = parse("""
+        {
+          "a": 5,
+          "b": true,
+          "c": ["foo", "bar", "baz"],
+          "d": {
+            "e": 45.222,
+            "f": null
+          }
+        }
+      """).toOption.get
+
+      st.coerce(json) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> true.asJson,
         "c" -> List("foo", "bar", "baz").asJson,
@@ -54,8 +76,19 @@ class SchemaTypeSpec extends Specification {
         ).asJson
       ).asJson)
     }
+
     "convert improperly typed json to fit schema based on conversion rules" >> {
-      fitJsonToSchema(json2, st) shouldEqual Valid(Map(
+      val json = parse("""
+        {
+          "a": 5,
+          "c": [1, 2, "3"],
+          "d": {
+            "e": 45.222
+          }
+        }
+      """).toOption.get
+
+      st.coerce(json) shouldEqual Right(Map(
         "a" -> 5.asJson,
         "b" -> None.asJson,
         "c" -> List("1", "2", "3").asJson,
@@ -65,5 +98,47 @@ class SchemaTypeSpec extends Specification {
         ).asJson
       ).asJson)
     }
+
+    "allow null values if nullable = true" >> {
+      val json = parse("""
+        {
+          "a": null,
+          "c": [1, 2, "3"],
+          "d": {
+            "e": 45.222
+          }
+        }
+      """).toOption.get
+
+      st.coerce(json) must beRight
+    }
+    "disallow null values if nullable = false" >> {
+      val json = parse("""
+        {
+          "a": 5,
+          "c": [1, 2, "3"],
+          "d": {
+            "e": null
+          }
+        }
+      """).toOption.get
+
+      st.coerce(json) must beLeft
+    }
+    "disallow missing value if field is nullable" >> {
+      val json = parse("""
+        {
+          "a": 5,
+          "b": true,
+          "c": [1, 2, "3"],
+          "d": {
+            "f": null
+          }
+        }
+      """).toOption.get
+
+      st.coerce(json) must beLeft
+    }
   }
+
 }
